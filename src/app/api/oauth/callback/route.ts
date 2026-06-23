@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOAuth2Client } from "@/lib/googleDrive";
 import { storeTokens } from "@/lib/tokenStore";
+import { isAdminSession } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
+  if (!(await isAdminSession())) {
+    return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+  }
+
   const code = request.nextUrl.searchParams.get("code");
 
   if (!code) {

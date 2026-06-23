@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Script from "next/script";
 
 declare global {
@@ -13,6 +13,9 @@ declare global {
             client_id: string;
             callback: (response: { credential: string }) => void;
             auto_select?: boolean;
+            ux_mode?: string;
+            login_uri?: string;
+            itp_support?: boolean;
           }) => void;
           renderButton: (
             element: HTMLElement,
@@ -31,12 +34,26 @@ declare global {
 }
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginContent />
+    </Suspense>
+  );
+}
+
+function LoginContent() {
   const [accessCode, setAccessCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState(false);
   const [gsiLoaded, setGsiLoaded] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get("pending") === "true") setPending(true);
+    if (searchParams.get("error")) setError("Sign-in failed. Please try again.");
+  }, [searchParams]);
 
   const handleGoogleResponse = useCallback(
     async (response: { credential: string }) => {
@@ -174,8 +191,16 @@ export default function LoginPage() {
             )}
 
             {/* Google Sign-In Button */}
-            <div className="flex justify-center mb-6">
+            <div className="flex justify-center mb-3">
               <div id="google-signin-button" />
+            </div>
+            <div className="flex justify-center mb-6">
+              <a
+                href="/api/auth/google-signin"
+                className="text-[13px] text-[#1a73e8] hover:underline"
+              >
+                Having trouble? Click here to sign in
+              </a>
             </div>
 
             {/* Divider */}
