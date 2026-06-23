@@ -10,6 +10,7 @@ export interface QueuedFile {
 
 interface UploadQueueProps {
   files: QueuedFile[];
+  destinationFolder?: string;
 }
 
 function formatSize(bytes: number): string {
@@ -79,7 +80,7 @@ function StatusBadge({ status }: { status: QueuedFile["status"] }) {
   );
 }
 
-export default function UploadQueue({ files }: UploadQueueProps) {
+export default function UploadQueue({ files, destinationFolder }: UploadQueueProps) {
   if (files.length === 0) return null;
 
   const uploaded = files.filter((f) => f.status === "uploaded").length;
@@ -92,9 +93,19 @@ export default function UploadQueue({ files }: UploadQueueProps) {
   return (
     <div className="mt-5">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="font-medium text-[#202124] text-[14px]">
-          Files ({completedCount}/{total})
-        </h3>
+        <div>
+          <h3 className="font-medium text-[#202124] text-[14px]">
+            Files ({completedCount}/{total})
+          </h3>
+          {destinationFolder && (
+            <p className="text-[12px] text-[#5f6368] mt-0.5 flex items-center gap-1">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
+              </svg>
+              {destinationFolder}
+            </p>
+          )}
+        </div>
         <div className="flex gap-3 text-[12px] font-medium">
           {uploaded > 0 && (
             <span className="text-[#188038] flex items-center gap-1">

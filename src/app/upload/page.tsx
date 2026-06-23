@@ -310,7 +310,7 @@ export default function UploadPage() {
             disabled={!targetFolderId}
           />
 
-          <UploadQueue files={uploadQueue} />
+          <UploadQueue files={uploadQueue} destinationFolder={targetFolderName} />
 
           {pendingCount > 0 && !uploading && (
             <button
