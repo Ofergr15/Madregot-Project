@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Member {
+  id         String       @id @default(cuid())
+  email      String       @unique
+  name       String?
+  picture    String?
+  status     MemberStatus @default(PENDING)
+  role       MemberRole   @default(MEMBER)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@map("members")
+}
+
+model OAuthToken {
+  id           String   @id @default("singleton")
+  accessToken  String
+  refreshToken String
+  expiryDate   BigInt
+  updatedAt    DateTime @updatedAt
+
+  @@map("oauth_tokens")
+}
+
+model UploadLog {
+  id           String   @id @default(cuid())
+  uploaderEmail String
+  fileName     String
+  driveFileId  String
+  folderId     String
+  folderName   String?
+  fileSize     BigInt
+  mimeType     String
+  createdAt    DateTime @default(now())
+
+  @@index([uploaderEmail])
+  @@index([createdAt])
+  @@map("upload_logs")
+}
+
+enum MemberStatus {
+  PENDING
+  APPROVED
+  DENIED
+}
+
+enum MemberRole {
+  MEMBER
+  ADMIN
+}
