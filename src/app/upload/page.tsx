@@ -187,8 +187,7 @@ export default function UploadPage() {
     }
 
     const newFolder = await res.json();
-    setFolders((prev) => [...prev, newFolder].sort((a, b) => a.name.localeCompare(b.name)));
-    setSelectedFolderId(newFolder.id);
+    handleOpenFolder(newFolder.id);
   };
 
   const handleFilesSelected = (files: File[]) => {
