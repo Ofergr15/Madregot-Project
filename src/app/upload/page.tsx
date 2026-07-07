@@ -346,6 +346,16 @@ export default function UploadPage() {
         <h1 className="text-[18px] text-[#5f6368]">
           Madregot Running Club
         </h1>
+        <div className="flex-1" />
+        <button
+          onClick={async () => {
+            await fetch("/api/auth/logout", { method: "POST" });
+            router.push("/");
+          }}
+          className="text-[14px] text-[#5f6368] font-medium hover:bg-[#f1f3f4] px-3 py-2 rounded transition-colors"
+        >
+          Sign out
+        </button>
       </header>
 
       {/* Tab Navigation */}
