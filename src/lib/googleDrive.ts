@@ -56,6 +56,8 @@ export async function listChildFolders(parentId: string): Promise<FolderInfo[]> 
     fields: "files(id, name, createdTime, modifiedTime, webViewLink)",
     orderBy: "name",
     pageSize: 200,
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
   });
 
   return (res.data.files || []).map((f) => ({
@@ -79,6 +81,7 @@ export async function createFolder(
       parents: [parentId],
     },
     fields: "id, name, createdTime, modifiedTime, webViewLink",
+    supportsAllDrives: true,
   });
 
   return {
@@ -96,6 +99,7 @@ export async function getFolder(folderId: string): Promise<FolderInfo | null> {
     const res = await drive.files.get({
       fileId: folderId,
       fields: "id, name, createdTime, modifiedTime, webViewLink, parents, trashed",
+      supportsAllDrives: true,
     });
 
     if (res.data.trashed) return null;
@@ -128,6 +132,7 @@ export async function isFolderInsideRoot(
       const res = await drive.files.get({
         fileId: currentId,
         fields: "id, parents",
+        supportsAllDrives: true,
       });
 
       const parents = res.data.parents;
@@ -155,6 +160,8 @@ export async function findDuplicateByName(
     q: `'${folderId}' in parents and name = '${escapedName}' and trashed = false`,
     fields: "files(id)",
     pageSize: 1,
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
   });
 
   if (res.data.files && res.data.files.length > 0) {
@@ -191,6 +198,7 @@ export async function uploadFileToFolder(
       body: readable,
     },
     fields: "id, name, webViewLink",
+    supportsAllDrives: true,
   });
 
   return {
