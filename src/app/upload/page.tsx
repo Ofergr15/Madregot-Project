@@ -33,6 +33,7 @@ export default function UploadPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
   const [destinationLink, setDestinationLink] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const loadFolders = useCallback(
     async (parentId?: string) => {
@@ -73,6 +74,7 @@ export default function UploadPage() {
         if (!data.authenticated) {
           router.push("/");
         } else {
+          if (data.isAdmin) setIsAdmin(true);
           loadFolders();
         }
       });
@@ -267,6 +269,15 @@ export default function UploadPage() {
         <h1 className="text-[18px] text-[#5f6368]">
           Madregot Running Club
         </h1>
+        <div className="flex-1" />
+        {isAdmin && (
+          <a
+            href="/admin"
+            className="text-[14px] text-[#1a73e8] font-medium hover:bg-[#f1f3f4] px-3 py-2 rounded transition-colors"
+          >
+            Admin Panel
+          </a>
+        )}
       </header>
 
       <div className="max-w-3xl mx-auto p-4 sm:p-6">
