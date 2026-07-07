@@ -122,10 +122,12 @@ export default function UploadPage() {
       setSelectedFolderId(null);
       setLoading(true);
 
+      // If navigating to "root", don't pass parentId — the API defaults to the root folder
+      const isRoot = folderId === "root";
+      const url = isRoot ? "/api/folders" : `/api/folders?parentId=${encodeURIComponent(folderId)}`;
+
       try {
-        const res = await fetch(
-          `/api/folders?parentId=${encodeURIComponent(folderId)}`
-        );
+        const res = await fetch(url);
 
         if (res.status === 401) {
           router.push("/");
@@ -134,15 +136,20 @@ export default function UploadPage() {
 
         const data = await res.json();
         setFolders(data.folders || []);
-        setCurrentFolderId(folderId);
 
-        const folder = data.currentFolder;
-        if (folder) {
-          const existingIndex = breadcrumbs.findIndex((b) => b.id === folderId);
-          if (existingIndex >= 0) {
-            setBreadcrumbs(breadcrumbs.slice(0, existingIndex + 1));
-          } else {
-            setBreadcrumbs([...breadcrumbs, { id: folderId, name: folder.name }]);
+        if (data.isRoot || isRoot) {
+          setCurrentFolderId("root");
+          setBreadcrumbs([{ id: "root", name: "My Drive" }]);
+        } else {
+          setCurrentFolderId(folderId);
+          const folder = data.currentFolder;
+          if (folder) {
+            const existingIndex = breadcrumbs.findIndex((b) => b.id === folderId);
+            if (existingIndex >= 0) {
+              setBreadcrumbs(breadcrumbs.slice(0, existingIndex + 1));
+            } else {
+              setBreadcrumbs([...breadcrumbs, { id: folderId, name: folder.name }]);
+            }
           }
         }
       } catch {
