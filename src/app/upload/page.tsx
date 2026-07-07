@@ -212,84 +212,96 @@ export default function UploadPage() {
 
     setUploading(true);
     setUploadComplete(false);
+    setDestinationLink(`https://drive.google.com/drive/folders/${targetFolderId}`);
 
-    const batchSize = 3;
-    for (let i = 0; i < pendingFiles.length; i += batchSize) {
-      const batch = pendingFiles.slice(i, i + batchSize);
+    const concurrency = 3;
+    let index = 0;
 
-      const formData = new FormData();
-      formData.append("folderId", targetFolderId);
-      batch.forEach((qf) => formData.append("files", qf.file));
-
+    const uploadOne = async (qf: QueuedFile) => {
       setUploadQueue((prev) =>
         prev.map((f) =>
-          batch.some((b) => b.id === f.id)
-            ? { ...f, status: "uploading" as const, progress: 50 }
-            : f
+          f.id === qf.id ? { ...f, status: "uploading" as const, progress: 10 } : f
         )
       );
 
       try {
-        const res = await fetch("/api/upload", {
+        const sessionRes = await fetch("/api/upload/session", {
           method: "POST",
-          body: formData,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            folderId: targetFolderId,
+            fileName: qf.file.name,
+            mimeType: qf.file.type || "application/octet-stream",
+            fileSize: qf.file.size,
+          }),
         });
 
-        const data = await res.json();
+        const sessionData = await sessionRes.json();
 
-        if (!res.ok) {
+        if (!sessionRes.ok) {
           setUploadQueue((prev) =>
             prev.map((f) =>
-              batch.some((b) => b.id === f.id)
-                ? { ...f, status: "failed" as const, error: data.error }
-                : f
+              f.id === qf.id ? { ...f, status: "failed" as const, error: sessionData.error } : f
             )
           );
-          continue;
+          return;
+        }
+
+        if (sessionData.skipped) {
+          setUploadQueue((prev) =>
+            prev.map((f) =>
+              f.id === qf.id ? { ...f, status: "skipped" as const, progress: 100 } : f
+            )
+          );
+          return;
         }
 
         setUploadQueue((prev) =>
-          prev.map((f) => {
-            if (!batch.some((b) => b.id === f.id)) return f;
-
-            const uploaded = data.uploaded?.find(
-              (u: { originalName: string }) => u.originalName === f.file.name
-            );
-            if (uploaded) {
-              return { ...f, status: "uploaded" as const, progress: 100 };
-            }
-
-            const skipped = data.skipped?.find(
-              (s: { originalName: string }) => s.originalName === f.file.name
-            );
-            if (skipped) {
-              return { ...f, status: "skipped" as const, progress: 100 };
-            }
-
-            const failed = data.failed?.find(
-              (x: { originalName: string }) => x.originalName === f.file.name
-            );
-            if (failed) {
-              return { ...f, status: "failed" as const, error: failed.reason, progress: 100 };
-            }
-
-            return { ...f, status: "uploaded" as const, progress: 100 };
-          })
+          prev.map((f) =>
+            f.id === qf.id ? { ...f, progress: 30 } : f
+          )
         );
 
-        if (data.destinationFolderLink) {
-          setDestinationLink(data.destinationFolderLink);
+        const uploadRes = await fetch(sessionData.uploadUrl, {
+          method: "PUT",
+          headers: {
+            "Content-Type": qf.file.type || "application/octet-stream",
+            "Content-Length": String(qf.file.size),
+          },
+          body: qf.file,
+        });
+
+        if (uploadRes.ok || uploadRes.status === 200 || uploadRes.status === 201) {
+          setUploadQueue((prev) =>
+            prev.map((f) =>
+              f.id === qf.id ? { ...f, status: "uploaded" as const, progress: 100 } : f
+            )
+          );
+        } else {
+          const errText = await uploadRes.text().catch(() => "Upload failed");
+          setUploadQueue((prev) =>
+            prev.map((f) =>
+              f.id === qf.id ? { ...f, status: "failed" as const, error: errText.slice(0, 100) } : f
+            )
+          );
         }
       } catch {
         setUploadQueue((prev) =>
           prev.map((f) =>
-            batch.some((b) => b.id === f.id)
-              ? { ...f, status: "failed" as const, error: "Network error" }
-              : f
+            f.id === qf.id ? { ...f, status: "failed" as const, error: "Network error" } : f
           )
         );
       }
-    }
+    };
+
+    const next = async (): Promise<void> => {
+      if (index >= pendingFiles.length) return;
+      const qf = pendingFiles[index++];
+      await uploadOne(qf);
+      await next();
+    };
+
+    await Promise.all(Array.from({ length: Math.min(concurrency, pendingFiles.length) }, () => next()));
 
     setUploading(false);
     setUploadComplete(true);

@@ -213,3 +213,57 @@ export async function getFolderWebViewLink(folderId: string): Promise<string> {
   if (folder?.webViewLink) return folder.webViewLink;
   return `https://drive.google.com/drive/folders/${folderId}`;
 }
+
+export async function createResumableUploadSession(
+  folderId: string,
+  fileName: string,
+  mimeType: string,
+  fileSize: number
+): Promise<string> {
+  const oauth2Client = getOAuth2Client();
+  const storedTokens = await getStoredTokens();
+  const refreshToken =
+    storedTokens?.refresh_token || process.env.GOOGLE_REFRESH_TOKEN;
+
+  if (!refreshToken) {
+    throw new Error("Google Drive not connected");
+  }
+
+  oauth2Client.setCredentials({
+    refresh_token: refreshToken,
+    access_token: storedTokens?.access_token,
+    expiry_date: storedTokens?.expiry_date,
+  });
+
+  const { token } = await oauth2Client.getAccessToken();
+  if (!token) throw new Error("Failed to get access token");
+
+  const metadata = JSON.stringify({
+    name: fileName,
+    parents: [folderId],
+  });
+
+  const res = await fetch(
+    "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json; charset=UTF-8",
+        "X-Upload-Content-Type": mimeType,
+        "X-Upload-Content-Length": String(fileSize),
+      },
+      body: metadata,
+    }
+  );
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Failed to create upload session: ${err}`);
+  }
+
+  const location = res.headers.get("location");
+  if (!location) throw new Error("No upload location returned");
+
+  return location;
+}
