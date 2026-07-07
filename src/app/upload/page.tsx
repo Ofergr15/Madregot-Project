@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import FolderBrowser from "@/components/FolderBrowser";
@@ -191,6 +191,8 @@ export default function UploadPage() {
     handleOpenFolder(newFolder.id);
   };
 
+  const autoUploadRef = useRef(false);
+
   const handleFilesSelected = (files: File[]) => {
     const newFiles: QueuedFile[] = files.map((file, i) => ({
       id: `${Date.now()}-${i}-${file.name}`,
@@ -202,10 +204,7 @@ export default function UploadPage() {
     setUploadComplete(false);
     setDestinationLink(null);
     setProcessingFiles(false);
-  };
-
-  const handleBrowseStarted = () => {
-    setProcessingFiles(true);
+    autoUploadRef.current = true;
   };
 
   const handleUpload = async () => {
@@ -320,6 +319,17 @@ export default function UploadPage() {
     setUploading(false);
     setUploadComplete(true);
   };
+
+  useEffect(() => {
+    if (autoUploadRef.current && !uploading) {
+      const hasPending = uploadQueue.some((f) => f.status === "pending");
+      const hasTarget = selectedFolderId || currentFolderId;
+      if (hasPending && hasTarget) {
+        autoUploadRef.current = false;
+        handleUpload();
+      }
+    }
+  }, [uploadQueue, uploading, selectedFolderId, currentFolderId]);
 
   const handleApprove = async (email: string) => {
     setActionLoading(email);
