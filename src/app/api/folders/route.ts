@@ -41,11 +41,12 @@ export async function GET(request: NextRequest) {
       folders,
       currentFolder,
       isRoot: parentId === rootFolderId,
+      debug: { parentId, folderCount: folders.length },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error listing folders:", error);
     return NextResponse.json(
-      { error: "Failed to list folders" },
+      { error: "Failed to list folders", detail: error?.message || String(error) },
       { status: 500 }
     );
   }
