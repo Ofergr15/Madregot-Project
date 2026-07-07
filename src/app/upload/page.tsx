@@ -42,6 +42,7 @@ export default function UploadPage() {
   const [actualRootFolderId, setActualRootFolderId] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [uploadQueue, setUploadQueue] = useState<QueuedFile[]>([]);
+  const [processingFiles, setProcessingFiles] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
   const [destinationLink, setDestinationLink] = useState<string | null>(null);
@@ -200,6 +201,11 @@ export default function UploadPage() {
     setUploadQueue((prev) => [...prev, ...newFiles]);
     setUploadComplete(false);
     setDestinationLink(null);
+    setProcessingFiles(false);
+  };
+
+  const handleBrowseStarted = () => {
+    setProcessingFiles(true);
   };
 
   const handleUpload = async () => {
@@ -214,13 +220,12 @@ export default function UploadPage() {
     setUploadComplete(false);
     setDestinationLink(`https://drive.google.com/drive/folders/${targetFolderId}`);
 
-    const concurrency = 3;
-    let index = 0;
+    const CHUNK_SIZE = 4 * 1024 * 1024; // 4MB chunks to stay under Vercel limit
 
-    const uploadOne = async (qf: QueuedFile) => {
+    for (const qf of pendingFiles) {
       setUploadQueue((prev) =>
         prev.map((f) =>
-          f.id === qf.id ? { ...f, status: "uploading" as const, progress: 10 } : f
+          f.id === qf.id ? { ...f, status: "uploading" as const, progress: 5 } : f
         )
       );
 
@@ -244,7 +249,7 @@ export default function UploadPage() {
               f.id === qf.id ? { ...f, status: "failed" as const, error: sessionData.error } : f
             )
           );
-          return;
+          continue;
         }
 
         if (sessionData.skipped) {
@@ -253,35 +258,53 @@ export default function UploadPage() {
               f.id === qf.id ? { ...f, status: "skipped" as const, progress: 100 } : f
             )
           );
-          return;
+          continue;
         }
 
-        setUploadQueue((prev) =>
-          prev.map((f) =>
-            f.id === qf.id ? { ...f, progress: 30 } : f
-          )
-        );
+        const totalSize = qf.file.size;
+        let offset = 0;
+        let failed = false;
 
-        const uploadRes = await fetch(sessionData.uploadUrl, {
-          method: "PUT",
-          headers: {
-            "Content-Type": qf.file.type || "application/octet-stream",
-            "Content-Length": String(qf.file.size),
-          },
-          body: qf.file,
-        });
+        while (offset < totalSize) {
+          const end = Math.min(offset + CHUNK_SIZE, totalSize);
+          const chunk = qf.file.slice(offset, end);
 
-        if (uploadRes.ok || uploadRes.status === 200 || uploadRes.status === 201) {
+          const chunkRes = await fetch("/api/upload/chunk", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/octet-stream",
+              "x-upload-url": sessionData.uploadUrl,
+              "x-chunk-offset": String(offset),
+              "x-total-size": String(totalSize),
+              "x-mime-type": qf.file.type || "application/octet-stream",
+            },
+            body: chunk,
+          });
+
+          if (!chunkRes.ok) {
+            const errData = await chunkRes.json().catch(() => ({ error: "Chunk upload failed" }));
+            setUploadQueue((prev) =>
+              prev.map((f) =>
+                f.id === qf.id ? { ...f, status: "failed" as const, error: errData.error } : f
+              )
+            );
+            failed = true;
+            break;
+          }
+
+          offset = end;
+          const progress = Math.round((offset / totalSize) * 100);
+          setUploadQueue((prev) =>
+            prev.map((f) =>
+              f.id === qf.id ? { ...f, progress } : f
+            )
+          );
+        }
+
+        if (!failed) {
           setUploadQueue((prev) =>
             prev.map((f) =>
               f.id === qf.id ? { ...f, status: "uploaded" as const, progress: 100 } : f
-            )
-          );
-        } else {
-          const errText = await uploadRes.text().catch(() => "Upload failed");
-          setUploadQueue((prev) =>
-            prev.map((f) =>
-              f.id === qf.id ? { ...f, status: "failed" as const, error: errText.slice(0, 100) } : f
             )
           );
         }
@@ -292,16 +315,7 @@ export default function UploadPage() {
           )
         );
       }
-    };
-
-    const next = async (): Promise<void> => {
-      if (index >= pendingFiles.length) return;
-      const qf = pendingFiles[index++];
-      await uploadOne(qf);
-      await next();
-    };
-
-    await Promise.all(Array.from({ length: Math.min(concurrency, pendingFiles.length) }, () => next()));
+    }
 
     setUploading(false);
     setUploadComplete(true);
