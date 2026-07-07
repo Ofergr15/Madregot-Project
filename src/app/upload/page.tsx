@@ -513,7 +513,7 @@ export default function UploadPage() {
               </div>
               <p className="text-[13px] text-[#3c4043] mb-3">
                 {uploadQueue.filter((f) => f.status === "uploaded").length} uploaded,{" "}
-                {uploadQueue.filter((f) => f.status === "skipped").length} skipped,{" "}
+                {uploadQueue.filter((f) => f.status === "skipped").length} already exist,{" "}
                 {uploadQueue.filter((f) => f.status === "failed").length} failed
               </p>
               <div className="flex gap-3">

@@ -75,7 +75,7 @@ function StatusBadge({ status }: { status: QueuedFile["status"] }) {
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
         </svg>
       )}
-      {status}
+      {status === "skipped" ? "already exists" : status}
     </span>
   );
 }
@@ -116,7 +116,7 @@ export default function UploadQueue({ files, destinationFolder }: UploadQueuePro
           {skipped > 0 && (
             <span className="text-[#f9ab00] flex items-center gap-1">
               <span className="w-1.5 h-1.5 bg-[#f9ab00] rounded-full" />
-              {skipped} skipped
+              {skipped} already exist
             </span>
           )}
           {failed > 0 && (
