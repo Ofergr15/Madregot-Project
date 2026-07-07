@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
       folders,
       currentFolder,
       isRoot: parentId === rootFolderId,
-      debug: { parentId, folderCount: folders.length },
+      rootFolderId,
     });
   } catch (error: any) {
     console.error("Error listing folders:", error);

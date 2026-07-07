@@ -39,6 +39,7 @@ export default function UploadPage() {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([]);
   const [currentFolderId, setCurrentFolderId] = useState<string>("root");
+  const [actualRootFolderId, setActualRootFolderId] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [uploadQueue, setUploadQueue] = useState<QueuedFile[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -67,12 +68,13 @@ export default function UploadPage() {
 
         const data = await res.json();
         setFolders(data.folders || []);
+        if (data.rootFolderId) setActualRootFolderId(data.rootFolderId);
 
         if (data.isRoot) {
           setBreadcrumbs([
-            { id: parentId || "root", name: "My Drive" },
+            { id: "root", name: "My Drive" },
           ]);
-          setCurrentFolderId(parentId || "root");
+          setCurrentFolderId("root");
         }
       } catch {
         console.error("Failed to load folders");
@@ -136,6 +138,7 @@ export default function UploadPage() {
 
         const data = await res.json();
         setFolders(data.folders || []);
+        if (data.rootFolderId) setActualRootFolderId(data.rootFolderId);
 
         if (data.isRoot || isRoot) {
           setCurrentFolderId("root");
@@ -169,7 +172,9 @@ export default function UploadPage() {
   );
 
   const handleCreateFolder = async (name: string) => {
-    const parentId = selectedFolderId || currentFolderId;
+    const rawParentId = selectedFolderId || currentFolderId;
+    const parentId = rawParentId === "root" ? actualRootFolderId : rawParentId;
+    if (!parentId) throw new Error("No folder selected");
     const res = await fetch("/api/folders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -199,7 +204,8 @@ export default function UploadPage() {
   };
 
   const handleUpload = async () => {
-    const targetFolderId = selectedFolderId || currentFolderId;
+    const rawTargetId = selectedFolderId || currentFolderId;
+    const targetFolderId = rawTargetId === "root" ? actualRootFolderId : rawTargetId;
     if (!targetFolderId) return;
 
     const pendingFiles = uploadQueue.filter((f) => f.status === "pending");
